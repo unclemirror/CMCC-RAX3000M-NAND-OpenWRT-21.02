@@ -168,7 +168,7 @@ jobs:
         \t\tsed -i \"/^MacAddress=.*/ {s/.*/MacAddress=\$wifi0_mac/;b;}; \\\$aMacAddress=\$wifi0_mac\" /etc/wireless/mediatek/mt7981.dbdc.b0.dat
         \t\tlocal wifi1_mac=\"\$(macaddr_setbit_la \$wifi0_mac)\"
         \t\tsed -i \"/^MacAddress=.*/ {s/.*/MacAddress=\$wifi1_mac/;b;}; \\\$aMacAddress=\$wifi1_mac\" /etc/wireless/mediatek/mt7981.dbdc.b1.dat" > temp_insert.txt
-        sed -i '/mediatek_setup_macs()/,/\};/ {/cmcc,rax3000m-emmc)/ {n;n;n;r temp_insert.txt
+        sed -i '/mediatek_setup_macs()/,/\};/ {/cmcc,rax3000m)/ {n;n;n;r temp_insert.txt
         }}' target/linux/mediatek/mt7981/base-files/etc/board.d/02_network
 
     - name: Wireless configuration using luci-app-mtk
@@ -224,10 +224,10 @@ jobs:
         else
                 echo "WIFI_VERSION=-v7672" >> $GITHUB_ENV
         fi
-        if [ "${{ github.event.inputs.SW_DRIVER }}" = "DSA" ]; then
-                echo "SWITCH=-dsa" >> $GITHUB_ENV
+        if [ ${{ github.event.inputs.EEPROM }} == 'true' ]; then
+                echo "EEPROM=-eeprom" >> $GITHUB_ENV
         else
-                echo "SWITCH=-gsw" >> $GITHUB_ENV
+                echo "EEPROM=" >> $GITHUB_ENV
         fi
         if grep -q 'CONFIG_PACKAGE_mtwifi-cfg=y' .config; then
                 echo "WIFI_INTERFACE=-mtwifi" >> $GITHUB_ENV
@@ -260,7 +260,7 @@ jobs:
         cd openwrt/bin/targets/*/*
         rm -rf packages
         sudo -E apt-get -qq install rename
-        rename 's/.*${{ env.DEVICE_NAME }}/${{ env.FILE_DATE }}-${{ env.OPENWRT_NAME }}-${{ env.TARGET_NAME }}-${{ env.DEVICE_NAME }}${{ env.WIFI_VERSION }}${{ env.SWITCH }}${{ env.BUILD_DOCKERMAN }}/' *
+        rename 's/.*${{ env.DEVICE_NAME }}/${{ env.FILE_DATE }}-${{ env.OPENWRT_NAME }}-${{ env.TARGET_NAME }}-${{ env.DEVICE_NAME }}${{ env.WIFI_VERSION }}${{ env.EEPROM }}${{ env.BUILD_DOCKERMAN }}/' *
         echo "FIRMWARE=$PWD" >> $GITHUB_ENV
         echo "status=success" >> $GITHUB_OUTPUT
 
@@ -268,7 +268,7 @@ jobs:
       uses: actions/upload-artifact@main
       if: steps.organize.outputs.status == 'success' && !cancelled()
       with:
-        name: ${{ env.FILE_DATE }}-${{ env.OPENWRT_NAME }}-${{ env.TARGET_NAME }}-${{ env.DEVICE_NAME }}${{ env.WIFI_VERSION }}${{ env.SWITCH }}${{ env.BUILD_DOCKERMAN }}
+        name: ${{ env.FILE_DATE }}-${{ env.OPENWRT_NAME }}-${{ env.TARGET_NAME }}-${{ env.DEVICE_NAME }}${{ env.WIFI_VERSION }}${{ env.EEPROM }}${{ env.BUILD_DOCKERMAN }}
         path: ${{ env.FIRMWARE }}
 
     - name: Generate release tag
@@ -280,10 +280,10 @@ jobs:
         echo "- 使用分支：${{ env.REPO_BRANCH }}" >> release.txt
         echo "- 登录地址：${{ env.IP_ADDR }}" >> release.txt
         echo "- 使用WiFi驱动${{ github.event.inputs.WIFI_DRIVER }}" >> release.txt
-        if [[ "${{ env.SWITCH }}" == '-gsw' ]]; then
-               echo "- 使用GSW交换机驱动（非DSA）" >> release.txt
+        if [[ "${{ env.EEPROM }}" == '-eeprom' ]]; then
+               echo "- 使用nx30pro高功率eeprom并固定WiFi MAC地址" >> release.txt
         else
-               echo "- 使用DSA交换机驱动" >> release.txt
+               echo "- 未使用nx30pro高功率eeprom未固定WiFi MAC地址" >> release.txt
         fi
         if [[ "${{ env.WIFI_INTERFACE }}" == '-mtwifi' ]]; then
                 echo "- 使用hanwckf mtwifi-cfg原生luci无线配置工具" >> release.txt
@@ -295,7 +295,7 @@ jobs:
         else
                 echo "- 未编译luci-app-dockerman" >> release.txt
         fi
-        echo "release_tag=${{ env.FILE_DATE }}-${{ env.OPENWRT_NAME }}-${{ env.TARGET_NAME }}-${{ env.DEVICE_NAME }}${{ env.WIFI_VERSION }}${{ env.SWITCH }}${{ env.BUILD_DOCKERMAN }}" >> $GITHUB_OUTPUT
+        echo "release_tag=${{ env.FILE_DATE }}-${{ env.OPENWRT_NAME }}-${{ env.TARGET_NAME }}-${{ env.DEVICE_NAME }}${{ env.WIFI_VERSION }}${{ env.EEPROM }}${{ env.BUILD_DOCKERMAN }}" >> $GITHUB_OUTPUT
         echo "status=success" >> $GITHUB_OUTPUT
 
     - name: Upload firmware to release
@@ -305,7 +305,7 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         files: ${{ env.FIRMWARE }}/*
-        name: ${{ env.FILE_DATE }}-${{ env.OPENWRT_NAME }}-${{ env.TARGET_NAME }}-${{ env.DEVICE_NAME }}${{ env.WIFI_VERSION }}${{ env.SWITCH }}${{ env.BUILD_DOCKERMAN }}
+        name: ${{ env.FILE_DATE }}-${{ env.OPENWRT_NAME }}-${{ env.TARGET_NAME }}-${{ env.DEVICE_NAME }}${{ env.WIFI_VERSION }}${{ env.EEPROM }}${{ env.BUILD_DOCKERMAN }}
         tag_name: ${{ steps.tag.outputs.release_tag }}
         body_path: release.txt
 
