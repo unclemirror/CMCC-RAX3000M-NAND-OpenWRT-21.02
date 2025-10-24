@@ -275,9 +275,9 @@ jobs:
         echo "- 登录地址：${{ env.IP_ADDR }}" >> release.txt
         echo "- 使用WiFi驱动${{ github.event.inputs.WIFI_DRIVER }}" >> release.txt
         if [[ "${{ env.EEPROM }}" == '-eeprom' ]]; then
-               echo "- 使用nx30pro高功率eeprom并固定WiFi MAC地址" >> release.txt
+               echo "- 使用nx30pro高功率eeprom" >> release.txt
         else
-               echo "- 未使用nx30pro高功率eeprom未固定WiFi MAC地址" >> release.txt
+               echo "- 未使用nx30pro高功率eeprom" >> release.txt
         fi
         if [[ "${{ env.WIFI_INTERFACE }}" == '-mtwifi' ]]; then
                 echo "- 使用hanwckf mtwifi-cfg原生luci无线配置工具" >> release.txt
