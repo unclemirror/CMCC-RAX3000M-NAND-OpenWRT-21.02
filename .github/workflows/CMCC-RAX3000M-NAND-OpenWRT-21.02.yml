@@ -41,7 +41,7 @@ on:
         - v7.6.6.1-fw-20231024
         - v7.6.6.1-fw-20240823
       EEPROM:
-        description: 'Use nx30pro eeprom and fixed WiFi MAC address'
+        description: 'Use nx30pro eeprom'
         required: true
         default: true
         type: boolean
@@ -154,7 +154,7 @@ jobs:
         fi
         echo "Use WiFi Driver: $wifi_driver-fw-$firmware"
 
-    - name: Use nx30pro eeprom and fixed WiFi MAC address
+    - name: Use nx30pro eeprom
       if: github.event.inputs.EEPROM == 'true'
       run: |
         cd openwrt
@@ -164,12 +164,6 @@ jobs:
         else
                 cp $GITHUB_WORKSPACE/mt79xx_20231229-4012a0_eeprom.tar.xz dl/mt79xx_20231229-4012a0.tar.xz
         fi
-        echo -e "\t\tlocal wifi0_mac=\"\$(mmc_get_mac_binary factory 0x04)\"
-        \t\tsed -i \"/^MacAddress=.*/ {s/.*/MacAddress=\$wifi0_mac/;b;}; \\\$aMacAddress=\$wifi0_mac\" /etc/wireless/mediatek/mt7981.dbdc.b0.dat
-        \t\tlocal wifi1_mac=\"\$(macaddr_setbit_la \$wifi0_mac)\"
-        \t\tsed -i \"/^MacAddress=.*/ {s/.*/MacAddress=\$wifi1_mac/;b;}; \\\$aMacAddress=\$wifi1_mac\" /etc/wireless/mediatek/mt7981.dbdc.b1.dat" > temp_insert.txt
-        sed -i '/mediatek_setup_macs()/,/\};/ {/cmcc,rax3000m)/ {n;n;n;r temp_insert.txt
-        }}' target/linux/mediatek/mt7981/base-files/etc/board.d/02_network
 
     - name: Wireless configuration using luci-app-mtk
       if: github.event.inputs.APP_MTK == 'true'
