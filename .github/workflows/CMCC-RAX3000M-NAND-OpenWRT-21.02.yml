@@ -27,25 +27,24 @@ on:
         type: choice
         options:
         - v7.6.7.2-fw-20240823(recommend)
-        - v7.6.6.1-fw-20230808(recommend)
+        - v7.6.6.1-fw-20230306(recommend)
         - v7.6.7.2-fw-default
-        - v7.6.7.2-fw-20221208
-        - v7.6.7.2-fw-20230421
-        - v7.6.7.2-fw-20230808
+        - v7.6.7.2-fw-20230306
+        - v7.6.7.2-fw-20230330
+        - v7.6.7.2-fw-20230411
+        - v7.6.7.2-fw-20230717
         - v7.6.7.2-fw-20231024
         - v7.6.6.1-fw-default
-        - v7.6.6.1-fw-20221208
-        - v7.6.6.1-fw-20230421
+        - v7.6.6.1-fw-20230330
+        - v7.6.6.1-fw-20230411
+        - v7.6.6.1-fw-20230717
         - v7.6.6.1-fw-20231024
         - v7.6.6.1-fw-20240823
-      SW_DRIVER:
-        description: 'Choose Switch Driver'
+      EEPROM:
+        description: 'Use nx30pro eeprom and fixed WiFi MAC address'
         required: true
-        default: 'DSA'
-        type: choice
-        options:
-        - DSA
-        - GSW
+        default: true
+        type: boolean
       APP_MTK:
         description: 'Use luci-app-mtk wifi config'
         required: true
@@ -149,22 +148,28 @@ jobs:
                 sed -i 's/CONFIG_MTK_MT_WIFI_DRIVER_VERSION_7672=y/CONFIG_MTK_MT_WIFI_DRIVER_VERSION_7661=y/g' .config
         fi
         if [ "$firmware" == "default" ]; then
-                sed -i 's/CONFIG_MTK_MT_WIFI_MT7986_20240823=y/CONFIG_MTK_MT_WIFI_MT7986_DEFAULT_FIRMWARE=y/g' .config
+                sed -i 's/CONFIG_MTK_MT_WIFI_MT7981_20240823=y/CONFIG_MTK_MT_WIFI_MT7981_DEFAULT_FIRMWARE=y/g' .config
         else
-        	sed -i 's/CONFIG_MTK_MT_WIFI_MT7986_20240823=y/CONFIG_MTK_MT_WIFI_MT7986_${firmware}=y/g' .config
+        	sed -i 's/CONFIG_MTK_MT_WIFI_MT7981_20240823=y/CONFIG_MTK_MT_WIFI_MT7981_${firmware}=y/g' .config
         fi
         echo "Use WiFi Driver: $wifi_driver-fw-$firmware"
 
-    - name: Set switch driver
+    - name: Use nx30pro eeprom and fixed WiFi MAC address
+      if: github.event.inputs.EEPROM == 'true'
       run: |
         cd openwrt
-        if [ ${{ github.event.inputs.SW_DRIVER }} == 'DSA' ]; then
-                cp $GITHUB_WORKSPACE/mt7986a-dsa-jdcloud-re-cp-03.dts target/linux/mediatek/files-5.4/arch/arm64/boot/dts/mediatek/mt7986a-jdcloud-re-cp-03.dts
-                sed -i '/jdcloud,re-cp-03)/ {n; /eth0/ {s/eth0/lan1 lan2 lan3 lan4/; n; /ucidef_add_switch/ d}}' target/linux/mediatek/mt7986/base-files/etc/board.d/02_network
-                echo "Use Switch Driver: DSA"
+        wifi_driver=$(echo "${{ github.event.inputs.WIFI_DRIVER }}" | sed -E 's/^(v[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+).*/\1/')
+        if [ "$wifi_driver" == "v7.6.6.1" ]; then
+                cp $GITHUB_WORKSPACE/mt79xx_20220907-8b55f5_eeprom.tar.xz dl/mt79xx_20220907-8b55f5.tar.xz
         else
-                echo "Use Switch Driver: GSW"
+                cp $GITHUB_WORKSPACE/mt79xx_20231229-4012a0_eeprom.tar.xz dl/mt79xx_20231229-4012a0.tar.xz
         fi
+        echo -e "\t\tlocal wifi0_mac=\"\$(mmc_get_mac_binary factory 0x04)\"
+        \t\tsed -i \"/^MacAddress=.*/ {s/.*/MacAddress=\$wifi0_mac/;b;}; \\\$aMacAddress=\$wifi0_mac\" /etc/wireless/mediatek/mt7981.dbdc.b0.dat
+        \t\tlocal wifi1_mac=\"\$(macaddr_setbit_la \$wifi0_mac)\"
+        \t\tsed -i \"/^MacAddress=.*/ {s/.*/MacAddress=\$wifi1_mac/;b;}; \\\$aMacAddress=\$wifi1_mac\" /etc/wireless/mediatek/mt7981.dbdc.b1.dat" > temp_insert.txt
+        sed -i '/mediatek_setup_macs()/,/\};/ {/cmcc,rax3000m-emmc)/ {n;n;n;r temp_insert.txt
+        }}' target/linux/mediatek/mt7981/base-files/etc/board.d/02_network
 
     - name: Wireless configuration using luci-app-mtk
       if: github.event.inputs.APP_MTK == 'true'
